@@ -120,7 +120,7 @@ export class ChatController {
           await stream.writeSSE({
             data: JSON.stringify({
               type: 'text',
-              content: 'I apologize, but I encountered an error processing your request. Please try again.',
+              content: 'Error: ' + (error?.message || 'Unknown error during streaming') + '. Please check your environment variables.',
             }),
           });
           await stream.writeSSE({
@@ -128,7 +128,7 @@ export class ChatController {
               type: 'done',
               conversationId: result.conversation.id,
               agentType: result.agentType,
-              debugTrace: { error: error?.message },
+              debugTrace: { ...result.debugTrace, error: error?.message },
               toolCalls: [],
             }),
           });
