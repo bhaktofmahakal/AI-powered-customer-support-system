@@ -11,11 +11,11 @@
     "build": "prisma generate && tsc"
   },
   "dependencies": {
-    "@prisma/client": "^5.14.0"
+    "@prisma/client": "^5.22.0"
   },
   "devDependencies": {
     "@types/node": "^20.19.33",
-    "prisma": "^5.14.0",
+    "prisma": "^5.22.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.4.5"
   },

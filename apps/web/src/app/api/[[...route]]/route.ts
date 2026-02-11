@@ -1,6 +1,6 @@
 import { handle } from 'hono/vercel';
 
-// Import the Hono app directly from the api package source
+
 const getApp = async () => {
     // apps/web/src/app/api/[[...route]]/route.ts
     // 1: [[...route]], 2: api, 3: app, 4: src, 5: web, 6: apps
