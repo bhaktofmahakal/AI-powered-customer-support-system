@@ -18,7 +18,7 @@ export class SupportAgent {
     const systemPrompt = `You are a helpful customer support agent.`;
 
     return (streamText as any)({
-      model: groq(process.env.AI_MODEL || 'llama-3.3-70b-versatile'),
+      model: groq(process.env.AI_MODEL || 'llama-3.3-70b-versatile') as any,
       system: systemPrompt,
       messages: conversationHistory,
       maxSteps: 5,

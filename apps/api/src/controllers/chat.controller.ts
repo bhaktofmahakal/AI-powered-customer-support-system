@@ -59,32 +59,39 @@ export class ChatController {
           });
 
           for await (const chunk of result.stream.fullStream) {
-            if (chunk.type === 'text-delta') {
-              fullResponse += chunk.textDelta;
-              await stream.writeSSE({
-                data: JSON.stringify({
-                  type: 'text',
-                  content: chunk.textDelta,
-                }),
-              });
-            } else if (chunk.type === 'tool-call') {
-              toolCalls.push({
-                tool: chunk.toolName,
-                args: chunk.args,
-              });
-              await stream.writeSSE({
-                data: JSON.stringify({
-                  type: 'thinking',
-                  status: `Using ${chunk.toolName}...`,
-                }),
-              });
-            } else if (chunk.type === 'tool-result') {
-              await stream.writeSSE({
-                data: JSON.stringify({
-                  type: 'thinking',
-                  status: 'Composing response...',
-                }),
-              });
+            try {
+              if (chunk.type === 'text-delta') {
+                fullResponse += chunk.textDelta;
+                await stream.writeSSE({
+                  data: JSON.stringify({
+                    type: 'text',
+                    content: chunk.textDelta,
+                  }),
+                });
+              } else if (chunk.type === 'tool-call') {
+                toolCalls.push({
+                  tool: chunk.toolName,
+                  args: chunk.args,
+                });
+                await stream.writeSSE({
+                  data: JSON.stringify({
+                    type: 'thinking',
+                    status: `Using ${chunk.toolName}...`,
+                  }),
+                });
+              } else if (chunk.type === 'tool-result') {
+                await stream.writeSSE({
+                  data: JSON.stringify({
+                    type: 'thinking',
+                    status: 'Composing response...',
+                  }),
+                });
+              } else {
+                // Ignore other chunk types like 'stream-start', 'response-metadata', etc.
+                console.log(`[ChatController] Skipping chunk type: ${(chunk as any).type}`);
+              }
+            } catch (err: any) {
+              console.warn('[ChatController] Error processing stream chunk:', err.message);
             }
           }
 

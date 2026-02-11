@@ -17,8 +17,8 @@ export class OrderAgent {
   ) {
     const systemPrompt = `You are an order management specialist.`;
 
-    return (streamText as any)({
-      model: groq(process.env.AI_MODEL || 'llama-3.3-70b-versatile'),
+    return streamText({
+      model: groq(process.env.AI_MODEL || 'llama-3.3-70b-versatile') as any,
       system: systemPrompt,
       messages: conversationHistory,
       maxSteps: 5,

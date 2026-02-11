@@ -22,7 +22,7 @@ When processing refunds, always confirm the transaction ID and amount with the u
 
 
     return (streamText as any)({
-      model: groq(process.env.AI_MODEL || 'llama-3.3-70b-versatile'),
+      model: groq(process.env.AI_MODEL || 'llama-3.3-70b-versatile') as any,
       system: systemPrompt,
       messages: conversationHistory,
       maxSteps: 5,
