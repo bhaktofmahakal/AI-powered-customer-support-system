@@ -36,7 +36,7 @@ app.use('*', errorHandler);
 const routes = app
   .get('/api/health', (c) => c.json({ status: 'ok' }))
 
-  .post('/api/chat/messages', limiter, authMiddleware, (c) => ChatController.sendMessage(c))
+  .post('/api/chat/messages', authMiddleware, (c) => ChatController.sendMessage(c))
   .get('/api/chat/conversations', authMiddleware, (c) => ChatController.getConversations(c))
   .get('/api/chat/conversations/:id', authMiddleware, (c) => ChatController.getConversation(c))
   .delete('/api/chat/conversations/:id', authMiddleware, (c) => ChatController.deleteConversation(c))
