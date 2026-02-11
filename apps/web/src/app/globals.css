@@ -1,0 +1,61 @@
+/* Standard Tailwind CSS Entry */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: #13ecec;
+  --background-light: #f6f8f8;
+  --background-dark: #102222;
+  --foreground: #1e293b;
+}
+
+@layer base {
+  body {
+    @apply bg-background-light text-slate-800 font-display transition-colors duration-300;
+  }
+}
+
+@layer utilities {
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #13ecec33;
+    border-radius: 10px;
+  }
+
+  .mesh-gradient {
+    background-color: var(--background-light);
+    background-image:
+      radial-gradient(at 0% 0%, rgba(19, 236, 236, 0.05) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(19, 236, 236, 0.05) 0px, transparent 50%);
+  }
+
+  .glass-panel {
+    @apply bg-white/70 backdrop-blur-md border border-white/20;
+  }
+}
+
+/* Animations */
+@keyframes blink {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0;
+  }
+}
+
+.cursor-blink {
+  border-right: 2px solid var(--primary);
+  animation: blink 1s infinite;
+}
