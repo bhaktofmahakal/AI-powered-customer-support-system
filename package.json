@@ -1,0 +1,22 @@
+{
+  "name": "swadesh-ai-task",
+  "private": true,
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "lint": "turbo lint",
+    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    "db:generate": "turbo db:generate",
+    "db:migrate": "turbo db:migrate",
+    "db:seed": "turbo db:seed"
+  },
+  "devDependencies": {
+    "prettier": "^3.2.5",
+    "turbo": "^2.0.0",
+    "typescript": "^5.4.5"
+  },
+  "packageManager": "pnpm@10.29.2",
+  "dependencies": {
+    "workflow": "4.1.0-beta.54"
+  }
+}
