@@ -20,6 +20,15 @@
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "api": [
+        "../api/src/index"
+      ],
+      "@repo/shared": [
+        "../../packages/shared/src/index"
+      ],
+      "@repo/database": [
+        "../../packages/database/src/index"
       ]
     },
     "plugins": [

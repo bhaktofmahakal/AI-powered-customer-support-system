@@ -1,7 +1,6 @@
 
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
-const { withWorkflow } = require("workflow/next");
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -11,7 +10,7 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: false,
   },
-  transpilePackages: ["@repo/shared", "@repo/database", "api", "workflow"],
+  transpilePackages: ["@repo/shared", "@repo/database", "api"],
   experimental: {
     serverActions: {
       bodySizeLimit: '2mb',
@@ -34,4 +33,4 @@ const nextConfig = {
   },
 };
 
-export default withWorkflow(nextConfig);
+export default nextConfig;

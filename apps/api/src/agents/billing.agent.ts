@@ -41,9 +41,10 @@ When processing refunds, always confirm the transaction ID and amount with the u
                 return { success: false, message: 'Transaction not found or you do not have permission to refund it.' };
               }
 
-              const { start } = await import('workflow/api');
+              // const { start } = await import('workflow/api');
               const { processRefundWorkflow } = await import('../workflows/refund.workflow');
-              await start(processRefundWorkflow, [transactionId, amount]);
+              // await start(processRefundWorkflow, [transactionId, amount]);
+              await processRefundWorkflow(transactionId, amount);
               return { success: true, message: `Refund workflow for $${amount} has been initiated for transaction ${transactionId}.` };
             } catch (err: any) {
               console.error('[BillingAgent] processRefund error:', err);

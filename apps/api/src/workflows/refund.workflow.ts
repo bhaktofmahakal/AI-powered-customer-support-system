@@ -1,14 +1,16 @@
-import { sleep, FatalError } from "workflow";
+// import { sleep, FatalError } from "workflow";
 import prisma from "../lib/db";
+class FatalError extends Error { }
 
 export async function processRefundWorkflow(transactionId: string, amount: number) {
-    "use workflow";
+    // "use workflow";
 
     const transaction = await validateTransaction(transactionId);
 
     await executeRefund(transaction.id, amount);
 
-    await sleep("2s");
+    // await sleep("2s");
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     await sendRefundNotification(transaction.userId, amount);
 
