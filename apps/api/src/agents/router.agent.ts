@@ -17,7 +17,7 @@ export class RouterAgent {
     rationale: string;
   }> {
     try {
-      console.log('[Router] Classifying user message:', userMessage);
+      console.log('[Router] Classifying user intent:', userMessage);
 
       const { object } = await generateObject({
         model: groq(process.env.AI_MODEL || 'llama-3.3-70b-versatile') as any,
@@ -34,7 +34,7 @@ Available agents:
       console.log(`[Router] Classified as: ${object.agentType} - ${object.rationale}`);
       return object as { agentType: 'support' | 'order' | 'billing'; rationale: string };
     } catch (e: any) {
-      console.error('❌ Router Classification Failed:', e.message);
+      console.error('❌ Router Error:', e.message);
       return {
         agentType: 'support',
         rationale: 'Error during classification, defaulting to support agent.',

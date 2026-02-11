@@ -15,7 +15,7 @@ export class SupportAgent {
     userId: string,
     conversationId?: string
   ) {
-    const systemPrompt = `You are a helpful customer support agent.`;
+    const systemPrompt = `You are a helpful customer support agent. Give concise and accurate answers.`;
 
     return (streamText as any)({
       model: groq(process.env.AI_MODEL || 'llama-3.3-70b-versatile') as any,

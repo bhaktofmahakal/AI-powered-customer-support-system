@@ -15,37 +15,37 @@ export class OrderAgent {
     userId: string,
     conversationId?: string
   ) {
-    const systemPrompt = `You are an order management specialist.`;
+    const systemPrompt = `You are an order management specialist. You can help users with order tracking, check delivery status, and handle cancellations.`;
 
-    return streamText({
+    return (streamText as any)({
       model: groq(process.env.AI_MODEL || 'llama-3.3-70b-versatile') as any,
       system: systemPrompt,
       messages: conversationHistory,
       maxSteps: 5,
       tools: {
         orderDetails: {
-          description: 'Get order details',
+          description: 'Get details for a specific order by order number',
           parameters: z.object({ orderNumber: z.string() }),
           execute: async ({ orderNumber }: { orderNumber: string }) => {
             return await ToolService.getOrderDetails(orderNumber, userId);
           },
         },
         deliveryStatus: {
-          description: 'Check delivery',
+          description: 'Check the delivery status for an order',
           parameters: z.object({ orderNumber: z.string() }),
           execute: async ({ orderNumber }: { orderNumber: string }) => {
             return await ToolService.checkDeliveryStatus(orderNumber, userId);
           },
         },
         cancelOrder: {
-          description: 'Cancel order',
+          description: 'Cancel a pending order',
           parameters: z.object({ orderNumber: z.string() }),
           execute: async ({ orderNumber }: { orderNumber: string }) => {
             return await ToolService.cancelOrder(orderNumber, userId);
           },
         },
         queryHistory: {
-          description: 'Query history',
+          description: 'Query previous conversation history for context',
           parameters: z.object({ limit: z.number().optional().default(10) }),
           execute: async ({ limit }: { limit: number }) => {
             if (!conversationId) return { found: false, messages: [] };
