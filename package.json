@@ -15,7 +15,7 @@
     "turbo": "^2.0.0",
     "typescript": "^5.4.5"
   },
-  "packageManager": "pnpm@10.29.2",
+  "packageManager": "pnpm@9.0.0",
   "dependencies": {
     "next": "14.2.3"
   }
