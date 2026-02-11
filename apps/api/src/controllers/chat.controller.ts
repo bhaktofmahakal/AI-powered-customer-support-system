@@ -15,11 +15,7 @@ export class ChatController {
       const body = await c.req.json();
       const { message, conversationId } = body;
 
-      console.log('[ChatController] New message request:', {
-        messageLength: message?.length,
-        conversationId,
-        userId
-      });
+      console.log('[ChatController] Message from user:', userId, '| length:', message?.length);
 
       if (!message || typeof message !== 'string') {
         throw new AppError(400, 'Message is required and must be a string');
@@ -29,15 +25,13 @@ export class ChatController {
         throw new AppError(400, 'Message too long. Maximum 4000 characters.');
       }
 
-      console.log('[ChatController] Calling AgentService.processMessage');
       const result = await AgentService.processMessage({
         message,
         userId,
         conversationId,
       });
-      console.log('[ChatController] AgentService.processMessage completed successfully');
 
-      console.log('[ChatController] Agent result obtained, starting stream');
+      console.log('[ChatController] Agent:', result.agentType, '| Starting SSE stream');
 
       return streamSSE(c, async (stream) => {
         let fullResponse = '';
@@ -45,18 +39,21 @@ export class ChatController {
 
         try {
           if (!result.stream || !result.stream.fullStream) {
-            console.error('[ChatController] Agent returned invalid stream');
+            console.error('[ChatController] Invalid stream from agent');
             await stream.writeSSE({
-              event: 'error',
-              data: JSON.stringify({ error: 'Agent failed to initialize stream' }),
+              data: JSON.stringify({
+                type: 'error',
+                message: 'Agent failed to initialize',
+              }),
             });
             return;
           }
 
+          // Send initial thinking indicator
           await stream.writeSSE({
             data: JSON.stringify({
               type: 'thinking',
-              status: 'Analyzing your request...',
+              status: 'Routing to ' + result.agentType + ' agent...',
               agentType: result.agentType,
             }),
           });
@@ -77,25 +74,11 @@ export class ChatController {
               });
               await stream.writeSSE({
                 data: JSON.stringify({
-                  type: 'tool-call',
-                  toolName: chunk.toolName,
-                  args: chunk.args,
-                }),
-              });
-              await stream.writeSSE({
-                data: JSON.stringify({
                   type: 'thinking',
-                  status: `Searching ${chunk.toolName}...`,
+                  status: `Using ${chunk.toolName}...`,
                 }),
               });
             } else if (chunk.type === 'tool-result') {
-              await stream.writeSSE({
-                data: JSON.stringify({
-                  type: 'tool-result',
-                  toolName: chunk.toolName,
-                  result: chunk.result,
-                }),
-              });
               await stream.writeSSE({
                 data: JSON.stringify({
                   type: 'thinking',
@@ -105,11 +88,13 @@ export class ChatController {
             }
           }
 
+          // Build final debug trace
           const finalDebugTrace = {
             ...result.debugTrace,
             toolsCalled: toolCalls.map((t) => t.tool),
           };
 
+          // Save assistant message to database
           await AgentService.saveAssistantMessage({
             conversationId: result.conversation.id,
             content: fullResponse,
@@ -118,6 +103,7 @@ export class ChatController {
             toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
           });
 
+          // Send completion event
           await stream.writeSSE({
             data: JSON.stringify({
               type: 'done',
@@ -127,20 +113,31 @@ export class ChatController {
               toolCalls: toolCalls,
             }),
           });
+
+          console.log('[ChatController] Stream completed. Response length:', fullResponse.length);
         } catch (error: any) {
-          console.error('[ChatController] Stream error:', error);
+          console.error('[ChatController] Stream error:', error?.message || error);
           await stream.writeSSE({
             data: JSON.stringify({
-              type: 'error',
-              message: 'An error occurred during response streaming',
+              type: 'text',
+              content: 'I apologize, but I encountered an error processing your request. Please try again.',
+            }),
+          });
+          await stream.writeSSE({
+            data: JSON.stringify({
+              type: 'done',
+              conversationId: result.conversation.id,
+              agentType: result.agentType,
+              debugTrace: { error: error?.message },
+              toolCalls: [],
             }),
           });
         }
       });
     } catch (error: any) {
       if (error instanceof AppError) throw error;
-      console.error('[ChatController] Processing error:', error);
-      throw new AppError(500, 'Failed to process message');
+      console.error('[ChatController] Fatal error:', error?.message || error);
+      throw new AppError(500, error?.message || 'Failed to process message');
     }
   }
 

@@ -43,7 +43,7 @@ function LoginForm() {
             </div>
 
             {/* Auth Buttons */}
-            <div className="space-y-6">
+            <div className="space-y-4">
               <button
                 onClick={() => signIn('google', { callbackUrl })}
                 className="w-full flex items-center justify-center gap-4 bg-background-dark dark:bg-white text-white dark:text-background-dark p-4 rounded-xl hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-primary/10 group overflow-hidden relative"
@@ -53,24 +53,32 @@ function LoginForm() {
                 <span className="text-sm font-black uppercase tracking-widest">Connect via Google</span>
               </button>
 
-              <div className="relative my-10">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-primary/10"></div>
-                </div>
-                <div className="relative flex justify-center text-[10px] uppercase">
-                  <span className="bg-white dark:bg-background-dark px-6 text-slate-400 font-black tracking-[0.3em]">Identity Verified</span>
-                </div>
-              </div>
+              <button
+                onClick={() => signIn('demo-login', { callbackUrl })}
+                className="w-full flex items-center justify-center gap-4 bg-primary/10 border-2 border-primary/30 text-background-dark dark:text-white p-4 rounded-xl hover:scale-[1.02] hover:bg-primary/20 active:scale-95 transition-all group overflow-hidden relative"
+              >
+                <span className="material-icons text-primary text-xl">smart_toy</span>
+                <span className="text-sm font-black uppercase tracking-widest">Demo Login</span>
+              </button>
+            </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col items-center justify-center gap-2 p-5 bg-primary/5 rounded-2xl border border-primary/10 hover:bg-primary/10 transition-colors">
-                  <span className="material-icons text-primary text-2xl">bolt</span>
-                  <span className="text-[10px] font-black uppercase tracking-tighter text-slate-500">Fast Sync</span>
-                </div>
-                <div className="flex flex-col items-center justify-center gap-2 p-5 bg-primary/5 rounded-2xl border border-primary/10 hover:bg-primary/10 transition-colors">
-                  <span className="material-icons text-primary text-2xl">security</span>
-                  <span className="text-[10px] font-black uppercase tracking-tighter text-slate-500">AES-256</span>
-                </div>
+            <div className="relative my-10">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-primary/10"></div>
+              </div>
+              <div className="relative flex justify-center text-[10px] uppercase">
+                <span className="bg-white dark:bg-background-dark px-6 text-slate-400 font-black tracking-[0.3em]">Identity Verified</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col items-center justify-center gap-2 p-5 bg-primary/5 rounded-2xl border border-primary/10 hover:bg-primary/10 transition-colors">
+                <span className="material-icons text-primary text-2xl">bolt</span>
+                <span className="text-[10px] font-black uppercase tracking-tighter text-slate-500">Fast Sync</span>
+              </div>
+              <div className="flex flex-col items-center justify-center gap-2 p-5 bg-primary/5 rounded-2xl border border-primary/10 hover:bg-primary/10 transition-colors">
+                <span className="material-icons text-primary text-2xl">security</span>
+                <span className="text-[10px] font-black uppercase tracking-tighter text-slate-500">AES-256</span>
               </div>
             </div>
 

@@ -5,15 +5,7 @@ import prisma from '../lib/db';
 
 export const authMiddleware = async (c: Context, next: Next) => {
   try {
-    const isTestOrDev = process.env.NODE_ENV === 'test' || process.env.NODE_ENV === 'development';
-    const hasTestFlag = c.req.header('x-test-auth') === 'true' || c.req.query('testAuth') === 'true';
-
-    if (isTestOrDev && hasTestFlag) {
-      c.set('userId', 'demo-user-id');
-      return await next();
-    }
-
-
+    // Try to extract JWT token from NextAuth session cookie
     let token;
     try {
       token = await getToken({
@@ -22,89 +14,58 @@ export const authMiddleware = async (c: Context, next: Next) => {
       });
     } catch (err: any) {
       console.error('[AuthMiddleware] getToken error:', err.message);
-      if (err.message?.includes('iterator')) {
+      // getToken can fail on Vercel with "Malformed input to a URL function"
+      // when the request URL doesn't have a proper base. Try a workaround:
+      try {
+        const cookieHeader = c.req.header('cookie') || '';
+        const sessionToken = cookieHeader
+          .split(';')
+          .map(c => c.trim())
+          .find(c => c.startsWith('next-auth.session-token=') || c.startsWith('__Secure-next-auth.session-token='));
+
+        if (sessionToken) {
+          // Extract just the token value
+          const tokenValue = sessionToken.split('=').slice(1).join('=');
+          // Decode the JWT manually using next-auth's decode
+          const { decode } = await import('next-auth/jwt');
+          token = await decode({
+            token: tokenValue,
+            secret: process.env.NEXTAUTH_SECRET || '',
+          });
+        }
+      } catch (fallbackErr: any) {
+        console.error('[AuthMiddleware] Fallback token extraction failed:', fallbackErr.message);
       }
     }
-    if (!token || !token.sub) {
-      if (isTestOrDev) {
-        console.warn('[AuthMiddleware] No token found, using demo user in dev');
-        const demoUserId = 'demo-user-id';
 
-        console.log('[AuthMiddleware] Upserting demo user...');
+    if (token && token.sub) {
+      const userId = token.sub;
+
+      // Sync user to database
+      try {
         await prisma.user.upsert({
-          where: { id: demoUserId },
+          where: { id: userId },
           update: {},
           create: {
-            id: demoUserId,
-            email: 'demo@example.com',
-            name: 'Demo User',
+            id: userId,
+            email: (token.email as string) || `${userId}@user.com`,
+            name: (token.name as string) || 'User',
           },
         });
-        console.log('[AuthMiddleware] Demo user ready');
-
-        c.set('userId', demoUserId);
-        return await next();
+      } catch (err) {
+        console.error('[AuthMiddleware] User upsert failed:', err);
       }
-      throw new AppError(401, 'Unauthorized - Invalid or missing session');
-    }
 
-    const userId = token.sub;
-
-    try {
-      console.log(`[AuthMiddleware] Syncing user: ${userId}`);
-      await prisma.user.upsert({
-        where: { id: userId },
-        update: {},
-        create: {
-          id: userId,
-          email: token.email as string || `${userId}@example.com`,
-          name: token.name as string || 'New User',
-        },
-      });
-      console.log(`[AuthMiddleware] User synced: ${userId}`);
-    } catch (err) {
-      console.error('[AuthMiddleware] User upsert failed:', err);
-    }
-
-    c.set('userId', userId);
-    await next();
-  } catch (error) {
-    if (error instanceof AppError) throw error;
-    console.error('[AuthMiddleware] Error:', error);
-    if (process.env.NODE_ENV !== 'production') {
-      c.set('userId', 'demo-user-id');
+      c.set('userId', userId);
       return await next();
     }
-    throw new AppError(401, 'Unauthorized - Auth verification failed');
-  }
-};
 
-export const optionalAuth = async (c: Context, next: Next) => {
-  try {
-    if (!process.env.NEXTAUTH_SECRET) {
-      throw new Error('NEXTAUTH_SECRET is not defined');
-    }
-
-    const token = await getToken({
-      req: c.req.raw as any,
-      secret: process.env.NEXTAUTH_SECRET,
-    });
-
-    if (token?.sub) {
-      c.set('userId', token.sub);
-    } else if (process.env.NODE_ENV !== 'production') {
-      c.set('userId', 'demo-user-id');
-    } else {
-      throw new AppError(401, 'Unauthorized');
-    }
-    await next();
+    // No valid token found
+    console.warn('[AuthMiddleware] No valid token found');
+    throw new AppError(401, 'Unauthorized - Please sign in');
   } catch (error) {
-    console.error('[AuthMiddleware] Optional auth error:', error);
-    if (process.env.NODE_ENV !== 'production') {
-      c.set('userId', 'demo-user-id');
-      await next();
-    } else {
-      throw new AppError(401, 'Unauthorized');
-    }
+    if (error instanceof AppError) throw error;
+    console.error('[AuthMiddleware] Unexpected error:', error);
+    throw new AppError(401, 'Unauthorized - Auth verification failed');
   }
 };

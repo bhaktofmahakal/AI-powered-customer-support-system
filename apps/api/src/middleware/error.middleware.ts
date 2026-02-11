@@ -16,7 +16,7 @@ export const errorHandler = async (c: Context, next: Function) => {
   try {
     await next();
   } catch (err: any) {
-    console.error('[Error Handler]', err);
+    console.error('[Error Handler]', err?.message || err);
 
     if (err instanceof HTTPException) {
       return c.json(
@@ -39,11 +39,10 @@ export const errorHandler = async (c: Context, next: Function) => {
       );
     }
 
-    const isProd = process.env.NODE_ENV === 'production';
     return c.json(
       {
         error: 'Internal Server Error',
-        message: isProd ? 'Internal Server Error' : (err.message || 'An unexpected error occurred'),
+        message: err.message || 'An unexpected error occurred',
         statusCode: 500,
       },
       500

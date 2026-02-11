@@ -1,7 +1,6 @@
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import { cors } from 'hono/cors';
-import { rateLimiter } from 'hono-rate-limiter';
 import 'dotenv/config';
 
 import { errorHandler } from './middleware/error.middleware';
@@ -12,23 +11,16 @@ import { AgentController } from './controllers/agent.controller';
 
 const app = new Hono();
 
-const limiter = rateLimiter({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  limit: 100, // Limit each IP to 100 requests per windowMs
-  standardHeaders: 'draft-7',
-  keyGenerator: (c) => {
-    const xForwardedFor = c.req.header('x-forwarded-for');
-    if (xForwardedFor) {
-      return xForwardedFor.split(',')[0].trim();
-    }
-
-    return '127.0.0.1';
-  },
-});
-
 app.use('*', requestLogger);
 app.use('*', cors({
-  origin: ['http://localhost:3000', 'http://localhost:3005'],
+  origin: (origin) => {
+    // Allow same-origin, localhost, and any vercel.app domain
+    if (!origin) return '*';
+    if (origin.includes('localhost') || origin.includes('vercel.app')) {
+      return origin;
+    }
+    return origin;
+  },
   credentials: true,
 }));
 app.use('*', errorHandler);

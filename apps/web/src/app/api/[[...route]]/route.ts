@@ -1,9 +1,6 @@
 import { handle } from 'hono/vercel';
 
-
 const getApp = async () => {
-    // apps/web/src/app/api/[[...route]]/route.ts
-    // 1: [[...route]], 2: api, 3: app, 4: src, 5: web, 6: apps
     const mod = await import('../../../../../../apps/api/src/index');
     return mod.default;
 };
@@ -18,6 +15,7 @@ function getOrCreateApp() {
 }
 
 export const runtime = 'nodejs';
+export const maxDuration = 60;
 
 export const GET = async (req: Request) => {
     const app = await getOrCreateApp();
