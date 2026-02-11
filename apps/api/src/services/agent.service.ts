@@ -24,7 +24,9 @@ export class AgentService {
       userId
     );
 
+    console.log('[AgentService] Calling RouterAgent.classifyIntent');
     const routingResult = await RouterAgent.classifyIntent(message);
+    console.log('[AgentService] RouterAgent.classifyIntent returned:', routingResult.agentType);
 
     console.log(
       `[AgentService] Routed to ${routingResult.agentType} agent: ${routingResult.rationale}`

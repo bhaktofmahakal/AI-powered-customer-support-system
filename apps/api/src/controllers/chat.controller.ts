@@ -29,11 +29,13 @@ export class ChatController {
         throw new AppError(400, 'Message too long. Maximum 4000 characters.');
       }
 
+      console.log('[ChatController] Calling AgentService.processMessage');
       const result = await AgentService.processMessage({
         message,
         userId,
         conversationId,
       });
+      console.log('[ChatController] AgentService.processMessage completed successfully');
 
       console.log('[ChatController] Agent result obtained, starting stream');
 
