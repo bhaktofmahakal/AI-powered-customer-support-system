@@ -54,6 +54,9 @@ An AI-powered customer support system with a multi-agent architecture built usin
 - **Context Summarization** — Older messages auto-summarized to fit context windows
 - **Deploy-Ready** — Vercel config included, setup scripts provided
 
+<img width="3600" height="2045" alt="image" src="https://github.com/user-attachments/assets/3796a7ef-2209-4488-874f-ee05e19b72e2" />
+
+
 ## 🚀 Quick Start
 
 ### Prerequisites
