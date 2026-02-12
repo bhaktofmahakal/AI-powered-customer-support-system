@@ -14,7 +14,7 @@ export class ToolService {
         take: limit,
       });
 
-      return messages.reverse().map((msg) => ({
+      return messages.reverse().map((msg: any) => ({
         role: msg.role,
         content: msg.content,
         agentType: msg.agentType,
@@ -63,7 +63,7 @@ export class ToolService {
 
       return {
         found: true,
-        articles: faqs.map((faq) => ({
+        articles: faqs.map((faq: any) => ({
           title: faq.title,
           content: faq.content,
           tags: faq.tags,
@@ -316,7 +316,7 @@ export class ToolService {
 
       return {
         found: payments.length > 0,
-        payments: payments.map((p) => ({
+        payments: payments.map((p: any) => ({
           transactionId: p.transactionId,
           amount: p.amount,
           currency: p.currency,

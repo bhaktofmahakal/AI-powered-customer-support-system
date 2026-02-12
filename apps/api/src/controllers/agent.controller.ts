@@ -16,11 +16,11 @@ export class AgentController {
       });
 
       return c.json({
-        agents: agents.map(agent => ({
+        agents: agents.map((agent: any) => ({
           type: agent.type,
           name: agent.name,
           description: agent.description,
-          capabilities: agent.tools.map(t => t.name)
+          capabilities: agent.tools.map((t: any) => t.name)
         }))
       });
     } catch (error: any) {
@@ -48,7 +48,7 @@ export class AgentController {
         type: agent.type,
         name: agent.name,
         description: agent.description,
-        tools: agent.tools.map(tool => ({
+        tools: agent.tools.map((tool: any) => ({
           name: tool.name,
           description: tool.description,
           parameters: tool.parameters
