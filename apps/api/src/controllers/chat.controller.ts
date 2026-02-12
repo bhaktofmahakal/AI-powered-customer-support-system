@@ -5,9 +5,6 @@ import { ConversationService } from '../services/conversation.service';
 import { AppError } from '../middleware/error.middleware';
 
 export class ChatController {
-  /**
-   * Main chat endpoint - handles multi-agent routing and streaming response
-   */
   static async chat(c: Context) {
     const userId = c.get('userId');
     const { message, conversationId } = await c.req.json();
@@ -28,7 +25,6 @@ export class ChatController {
           let fullResponse = '';
           const toolCalls: any[] = [];
 
-          // Initial state: Routing/Thinking started
           await stream.writeSSE({
             data: JSON.stringify({
               type: 'thinking',
@@ -37,12 +33,9 @@ export class ChatController {
             }),
           });
 
-          // Process the model stream
-          // Cast to any to bypass strict internal AI SDK type checks that vary by version
           const fullStream = (result.stream as any).fullStream;
 
           if (!fullStream) {
-            // Non-streaming fallback (rare but safe)
             const { text } = await result.stream;
             fullResponse = text;
             await stream.writeSSE({
@@ -54,11 +47,14 @@ export class ChatController {
                 const type = (chunk as any).type;
 
                 if (type === 'text-delta') {
-                  const delta = (chunk as any).textDelta;
-                  fullResponse += delta;
-                  await stream.writeSSE({
-                    data: JSON.stringify({ type: 'text', content: delta }),
-                  });
+                  // ROBUST: Check all possible text fields to avoid 'undefined'
+                  const delta = (chunk as any).textDelta || (chunk as any).text || (chunk as any).content || '';
+                  if (delta) {
+                    fullResponse += delta;
+                    await stream.writeSSE({
+                      data: JSON.stringify({ type: 'text', content: delta }),
+                    });
+                  }
                 } else if (type === 'tool-call') {
                   toolCalls.push({
                     tool: (chunk as any).toolName,
@@ -74,12 +70,9 @@ export class ChatController {
                   await stream.writeSSE({
                     data: JSON.stringify({
                       type: 'thinking',
-                      status: 'Composing final response...',
+                      status: 'Processing results...',
                     }),
                   });
-                } else {
-                  // Skip system/metadata chunks silently
-                  console.log(`[ChatController] Skip chunk: ${type}`);
                 }
               } catch (chunkErr: any) {
                 console.warn('[ChatController] Chunk error:', chunkErr.message);
@@ -92,7 +85,6 @@ export class ChatController {
             toolsCalled: toolCalls.map((t) => t.tool),
           };
 
-          // Persistence: Save the assistant's response
           await AgentService.saveAssistantMessage({
             conversationId: result.conversation.id,
             content: fullResponse,
@@ -101,7 +93,6 @@ export class ChatController {
             toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
           });
 
-          // Finish: Send final metadata and close
           await stream.writeSSE({
             data: JSON.stringify({
               type: 'done',
@@ -129,22 +120,16 @@ export class ChatController {
     }
   }
 
-  /**
-   * Get list of conversations for the current user
-   */
   static async getConversations(c: Context) {
     const userId = c.get('userId');
     try {
       const conversations = await ConversationService.getConversations(userId);
       return c.json(conversations);
     } catch (error: any) {
-      throw new AppError(500, 'Failed to fetch conversations');
+      return c.json({ error: 'Failed to fetch conversations' }, 500);
     }
   }
 
-  /**
-   * Get full history of a specific conversation
-   */
   static async getConversation(c: Context) {
     const userId = c.get('userId');
     const id = c.req.param('id');
@@ -152,13 +137,10 @@ export class ChatController {
       const history = await ConversationService.getConversationHistory(id, userId);
       return c.json(history);
     } catch (error: any) {
-      throw new AppError(404, error.message || 'Conversation not found');
+      return c.json({ error: 'Conversation not found' }, 404);
     }
   }
 
-  /**
-   * Delete a conversation
-   */
   static async deleteConversation(c: Context) {
     const userId = c.get('userId');
     const id = c.req.param('id');
@@ -166,7 +148,7 @@ export class ChatController {
       const result = await ConversationService.deleteConversation(id, userId);
       return c.json(result);
     } catch (error: any) {
-      throw new AppError(404, error.message || 'Failed to delete conversation');
+      return c.json({ error: 'Failed to delete' }, 500);
     }
   }
 }

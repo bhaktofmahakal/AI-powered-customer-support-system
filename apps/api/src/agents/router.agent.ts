@@ -1,14 +1,9 @@
-import { generateObject } from 'ai';
+import { generateText } from 'ai';
 import { createGroq } from '@ai-sdk/groq';
 import { z } from 'zod';
 
 const groq = createGroq({
   apiKey: process.env.GROQ_API_KEY,
-});
-
-const RouterResponseSchema = z.object({
-  agentType: z.enum(['support', 'order', 'billing']),
-  rationale: z.string(),
 });
 
 export class RouterAgent {
@@ -17,22 +12,29 @@ export class RouterAgent {
     rationale: string;
   }> {
     try {
-      console.log('[Router] Classifying user intent:', userMessage);
+      console.log('[Router] Classifying:', userMessage);
 
-      const { object } = await generateObject({
+      const { text } = await generateText({
         model: groq(process.env.AI_MODEL || 'llama-3.3-70b-versatile') as any,
-        schema: RouterResponseSchema,
-        system: `You are a routing agent for a customer support system. Analyze the user's message and determine which specialized agent should handle it.
+        system: `You are a routing agent. Determine the best specialist for the user message.
+Respond ONLY with a JSON object: {"agentType": "support" | "order" | "billing", "rationale": "reason"}
 
-Available agents:
-- "support": General support questions, FAQs, product information, return policies, warranties, account issues
-- "order": Order tracking, delivery status, order cancellation, shipping questions
-- "billing": Payment issues, refunds, invoices, subscription queries, transaction status`,
+Mapping:
+- billing: refunds, payments, invoices, transactions
+- order: tracking, delivery, cancellations
+- support: everything else, general FAQs`,
         prompt: userMessage,
       });
 
-      console.log(`[Router] Classified as: ${object.agentType} - ${object.rationale}`);
-      return object as { agentType: 'support' | 'order' | 'billing'; rationale: string };
+      // Flexible JSON parsing
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error('No JSON found in response');
+
+      const parsed = JSON.parse(jsonMatch[0]);
+      return {
+        agentType: parsed.agentType || 'support',
+        rationale: parsed.rationale || 'Defaulted to support',
+      };
     } catch (e: any) {
       console.error('❌ Router Error:', e.message);
       return {
