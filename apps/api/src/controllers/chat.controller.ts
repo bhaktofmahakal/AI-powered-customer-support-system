@@ -5,6 +5,9 @@ import { ConversationService } from '../services/conversation.service';
 import { AppError } from '../middleware/error.middleware';
 
 export class ChatController {
+  /**
+   * Main chat endpoint
+   */
   static async chat(c: Context) {
     const userId = c.get('userId');
     const { message, conversationId } = await c.req.json();
@@ -23,7 +26,7 @@ export class ChatController {
           let fullResponse = '';
           const toolCalls: any[] = [];
 
-          // 1. Initial State
+          // Initial thinking status
           await stream.writeSSE({
             data: JSON.stringify({
               type: 'thinking',
@@ -32,41 +35,43 @@ export class ChatController {
             }),
           });
 
+          // Process the stream
           const modelResult = result.stream as any;
-          const streamSource = modelResult.fullStream || modelResult.textStream;
+          // Support both fullStream (v4) and general async iterator
+          const streamSource = modelResult.fullStream || modelResult;
 
-          if (!streamSource) {
-            const { text } = await modelResult;
-            fullResponse = text;
-            await stream.writeSSE({ data: JSON.stringify({ type: 'text', content: text }) });
-          } else {
-            console.log(`[ChatController] Streaming started for user: ${userId}`);
-            for await (const chunk of streamSource) {
-              const type = (chunk as any).type;
+          if (streamSource && typeof (streamSource as any)[Symbol.asyncIterator] === 'function') {
+            for await (const chunk of streamSource as any) {
+              const type = chunk.type;
+              // Extract text delta carefully
+              const delta = chunk.textDelta || chunk.delta || (typeof chunk === 'string' ? chunk : null);
 
-              // Extract content from various possible chunk formats
-              const delta = (chunk as any).textDelta || (chunk as any).delta || (chunk as any).content || (typeof chunk === 'string' ? chunk : null);
-
-              if (delta && typeof delta === 'string') {
+              // Filter out null, undefined, and the string 'null'
+              if (delta && delta !== 'null' && delta !== 'undefined' && typeof delta === 'string' && delta.trim()) {
                 fullResponse += delta;
-                await stream.writeSSE({ data: JSON.stringify({ type: 'text', content: delta }) });
-              } else if (type === 'tool-call') {
-                const toolName = (chunk as any).toolName;
-                toolCalls.push({ tool: toolName, args: (chunk as any).args });
                 await stream.writeSSE({
-                  data: JSON.stringify({ type: 'thinking', status: `Using tool: ${toolName}...` }),
+                  data: JSON.stringify({ type: 'text', content: delta }),
                 });
-              } else if (type === 'tool-result') {
+              } else if (type === 'tool-call') {
+                toolCalls.push({ tool: chunk.toolName, args: chunk.args });
                 await stream.writeSSE({
-                  data: JSON.stringify({ type: 'thinking', status: 'Processing information...' }),
+                  data: JSON.stringify({
+                    type: 'thinking',
+                    status: `Agent is using ${chunk.toolName}...`
+                  }),
                 });
               }
             }
+          } else {
+            // Fallback for non-streaming
+            const { text } = await modelResult;
+            fullResponse = text;
+            await stream.writeSSE({ data: JSON.stringify({ type: 'text', content: text }) });
           }
 
-          // Fallback if no text was generated
+          // FINAL FALLBACK: If AI remained silent, give a better context-aware message
           if (!fullResponse.trim() && toolCalls.length === 0) {
-            fullResponse = "I'm analyzing your request. Could you please provide more details?";
+            fullResponse = `I am ready to help with your ${result.agentType} request. Could you please provide more details so I can assist you better?`;
             await stream.writeSSE({ data: JSON.stringify({ type: 'text', content: fullResponse }) });
           }
 
@@ -75,16 +80,16 @@ export class ChatController {
             toolsCalled: toolCalls.map(t => t.tool)
           };
 
-          // PERSIST
+          // Save to DB
           await AgentService.saveAssistantMessage({
             conversationId: result.conversation.id,
             content: fullResponse,
-            agentType: result.agentType,
+            agentType: result.agentType as any,
             debugTrace,
             toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
           });
 
-          // CLOSE
+          // Final close event
           await stream.writeSSE({
             data: JSON.stringify({
               type: 'done',
@@ -95,16 +100,16 @@ export class ChatController {
             }),
           });
 
-        } catch (err: any) {
-          console.error('[ChatController] Stream error:', err);
+        } catch (error: any) {
+          console.error('[ChatController] Stream internal error:', error);
           await stream.writeSSE({
-            data: JSON.stringify({ type: 'text', content: `\n\n[Agent Error]: ${err.message}` })
+            data: JSON.stringify({ type: 'text', content: `\n\n[Agent Error]: ${error.message}` })
           });
           await stream.writeSSE({ data: JSON.stringify({ type: 'done' }) });
         }
       });
     } catch (error: any) {
-      console.error('[ChatController] Error:', error);
+      console.error('[ChatController] Critical Error:', error);
       throw new AppError(500, error.message);
     }
   }
@@ -113,7 +118,7 @@ export class ChatController {
     const userId = c.get('userId');
     try {
       const conversations = await ConversationService.getConversations(userId);
-      return c.json(conversations);
+      return c.json(conversations || []);
     } catch (error: any) {
       return c.json([], 500);
     }
@@ -137,7 +142,7 @@ export class ChatController {
       await ConversationService.deleteConversation(id, userId);
       return c.json({ success: true });
     } catch (error: any) {
-      return c.json({ error: 'Delete failed' }, 500);
+      return c.json({ error: 'Failed' }, 500);
     }
   }
 }
