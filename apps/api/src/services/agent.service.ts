@@ -12,7 +12,7 @@ export class AgentService {
   }) {
     const { message, userId, conversationId } = params;
 
-    console.log('[AgentService] Processing message for user:', userId);
+    console.log('[AgentService] v2.5.1 - Processing message for user:', userId);
 
     const conversation = await ConversationService.getOrCreateConversation(
       userId,
