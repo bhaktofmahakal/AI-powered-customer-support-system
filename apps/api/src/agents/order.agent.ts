@@ -23,23 +23,26 @@ export class OrderAgent {
       model: groq(process.env.AI_MODEL || 'llama-3.3-70b-versatile') as any,
       system: `You are an Order Tracking Specialist.
 
-CRITICAL INSTRUCTIONS:
-1. If the user mentions an order number (like ORD-1002, ORDER-123, etc.), immediately use the orderDetails tool to fetch the information.
-2. If you find an order number in the message, DO NOT ask for it again - just use the tool.
-3. After calling the tool, explain the results in a friendly way.
-4. If no order number is mentioned, politely ask for it.
+CRITICAL RULES:
+1. When you see an order number (ORD-XXXX), use the orderDetails tool immediately.
+2. AFTER calling a tool, you MUST explain the results in plain text to the user.
+3. NEVER end your response after just calling a tool - always add a text explanation.
+4. If the tool returns data, summarize it in a friendly way.
+5. If the tool returns an error, explain it politely and suggest next steps.
 
-Examples:
+Example Flow:
 User: "Where is my order ORD-1002?"
-You: [Call orderDetails with ORD-1002, then explain the status]
+Step 1: [Call orderDetails tool with ORD-1002]
+Step 2: [Tool returns: {status: "shipped", tracking: "TRK123"}]
+Step 3: YOU MUST SAY: "Great news! Your order ORD-1002 has been shipped. The tracking number is TRK123. You can expect delivery within 3-5 business days."
 
-User: "Track my order"
-You: "I'd be happy to help track your order. Could you please provide your order number? It usually looks like ORD-XXXX."`,
+If no order number is found:
+"I'd be happy to help track your order. Could you please provide your order number? It usually looks like ORD-XXXX."`,
       messages,
       maxSteps: 5,
       tools: {
         orderDetails: {
-          description: 'Get detailed information about an order including status, shipping, and delivery estimates. Use this whenever an order number is mentioned.',
+          description: 'Get detailed order information. Always explain the results after calling this.',
           parameters: z.object({
             orderNumber: z.string().describe('The order number, e.g., ORD-1002')
           }),
@@ -48,7 +51,7 @@ You: "I'd be happy to help track your order. Could you please provide your order
           },
         },
         deliveryStatus: {
-          description: 'Check current delivery status and tracking information',
+          description: 'Check delivery status. Always explain the tracking info after calling this.',
           parameters: z.object({
             orderNumber: z.string().describe('The order number to track')
           }),

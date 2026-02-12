@@ -69,9 +69,16 @@ export class ChatController {
             await stream.writeSSE({ data: JSON.stringify({ type: 'text', content: text }) });
           }
 
-          // FINAL FALLBACK: If AI remained silent, give a better context-aware message
-          if (!fullResponse.trim() && toolCalls.length === 0) {
-            fullResponse = `I am ready to help with your ${result.agentType} request. Could you please provide more details so I can assist you better?`;
+          // FINAL FALLBACK: If AI remained silent after tool calls or didn't respond at all
+          if (!fullResponse.trim()) {
+            if (toolCalls.length > 0) {
+              // Tools were called but agent didn't generate text - create a summary
+              const toolNames = toolCalls.map(t => t.tool).join(', ');
+              fullResponse = `I've checked the information using ${toolNames}. Let me help you with that.`;
+            } else {
+              // No tools and no text - generic fallback
+              fullResponse = `I am ready to help with your ${result.agentType} request. Could you please provide more details so I can assist you better?`;
+            }
             await stream.writeSSE({ data: JSON.stringify({ type: 'text', content: fullResponse }) });
           }
 
