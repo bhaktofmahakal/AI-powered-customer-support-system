@@ -13,20 +13,30 @@ const app = new Hono();
 // CORS is enabled for all origins in development and restricted in production
 app.use('*', cors({
   origin: (origin) => {
-    // In production, you might want to restrict this to your actual frontend URL
+    // In production, we allow the request's origin if it exists
     if (process.env.NODE_ENV === 'production') {
       return origin;
     }
-    return origin;
+    return origin; // Allow all in dev
   },
   credentials: true,
 }));
 
 app.use('*', errorHandler);
 
+/**
+ * API Routes
+ */
 const routes = app
   .get('/api/health', (c) => c.json({ status: 'ok' }))
-  .post('/api/chat', authMiddleware, (c) => ChatController.chat(c))
+
+  // Chat & Conversation Routes
+  .post('/api/chat/messages', authMiddleware, (c) => ChatController.chat(c))
+  .get('/api/chat/conversations', authMiddleware, (c) => ChatController.getConversations(c))
+  .get('/api/chat/conversations/:id', authMiddleware, (c) => ChatController.getConversation(c))
+  .delete('/api/chat/conversations/:id', authMiddleware, (c) => ChatController.deleteConversation(c))
+
+  // Agent Routes
   .get('/api/agents', authMiddleware, (c) => AgentController.listAgents(c))
   .get('/api/agents/:type/capabilities', authMiddleware, (c) => AgentController.getCapabilities(c));
 
