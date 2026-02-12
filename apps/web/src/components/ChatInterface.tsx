@@ -157,10 +157,11 @@ export function ChatInterface({
               ));
 
               onTraceUpdate(streamTrace);
+              setIsLoading(false); // IMMEDIATE STOP
+              setThinkingStatus(null);
+
               if (data.conversationId && !conversationId) {
                 onConversationChange(data.conversationId);
-              } else {
-                onConversationChange(conversationId);
               }
             }
           } catch (e) {

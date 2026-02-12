@@ -9,9 +9,7 @@ export class ChatController {
     const userId = c.get('userId');
     const { message, conversationId } = await c.req.json();
 
-    if (!message) {
-      throw new AppError(400, 'Message is required');
-    }
+    if (!message) throw new AppError(400, 'Message is required');
 
     try {
       const result = await AgentService.processMessage({
@@ -25,97 +23,88 @@ export class ChatController {
           let fullResponse = '';
           const toolCalls: any[] = [];
 
+          // 1. Initial State
           await stream.writeSSE({
             data: JSON.stringify({
               type: 'thinking',
-              status: 'Routing to ' + result.agentType + ' agent...',
+              status: `Connecting to ${result.agentType} agent...`,
               agentType: result.agentType,
             }),
           });
 
-          const fullStream = (result.stream as any).fullStream;
+          const modelResult = result.stream as any;
+          const streamSource = modelResult.fullStream || modelResult.textStream;
 
-          if (!fullStream) {
-            const { text } = await result.stream;
+          if (!streamSource) {
+            const { text } = await modelResult;
             fullResponse = text;
-            await stream.writeSSE({
-              data: JSON.stringify({ type: 'text', content: text }),
-            });
+            await stream.writeSSE({ data: JSON.stringify({ type: 'text', content: text }) });
           } else {
-            for await (const chunk of fullStream) {
-              try {
-                const type = (chunk as any).type;
+            console.log(`[ChatController] Streaming started for user: ${userId}`);
+            for await (const chunk of streamSource) {
+              const type = (chunk as any).type;
 
-                if (type === 'text-delta') {
-                  // ROBUST: Check all possible text fields to avoid 'undefined'
-                  const delta = (chunk as any).textDelta || (chunk as any).text || (chunk as any).content || '';
-                  if (delta) {
-                    fullResponse += delta;
-                    await stream.writeSSE({
-                      data: JSON.stringify({ type: 'text', content: delta }),
-                    });
-                  }
-                } else if (type === 'tool-call') {
-                  toolCalls.push({
-                    tool: (chunk as any).toolName,
-                    args: (chunk as any).args,
-                  });
-                  await stream.writeSSE({
-                    data: JSON.stringify({
-                      type: 'thinking',
-                      status: `Using ${(chunk as any).toolName}...`,
-                    }),
-                  });
-                } else if (type === 'tool-result') {
-                  await stream.writeSSE({
-                    data: JSON.stringify({
-                      type: 'thinking',
-                      status: 'Processing results...',
-                    }),
-                  });
-                }
-              } catch (chunkErr: any) {
-                console.warn('[ChatController] Chunk error:', chunkErr.message);
+              // Extract content from various possible chunk formats
+              const delta = (chunk as any).textDelta || (chunk as any).delta || (chunk as any).content || (typeof chunk === 'string' ? chunk : null);
+
+              if (delta && typeof delta === 'string') {
+                fullResponse += delta;
+                await stream.writeSSE({ data: JSON.stringify({ type: 'text', content: delta }) });
+              } else if (type === 'tool-call') {
+                const toolName = (chunk as any).toolName;
+                toolCalls.push({ tool: toolName, args: (chunk as any).args });
+                await stream.writeSSE({
+                  data: JSON.stringify({ type: 'thinking', status: `Using tool: ${toolName}...` }),
+                });
+              } else if (type === 'tool-result') {
+                await stream.writeSSE({
+                  data: JSON.stringify({ type: 'thinking', status: 'Processing information...' }),
+                });
               }
             }
           }
 
-          const finalDebugTrace = {
+          // Fallback if no text was generated
+          if (!fullResponse.trim() && toolCalls.length === 0) {
+            fullResponse = "I'm analyzing your request. Could you please provide more details?";
+            await stream.writeSSE({ data: JSON.stringify({ type: 'text', content: fullResponse }) });
+          }
+
+          const debugTrace = {
             ...result.debugTrace,
-            toolsCalled: toolCalls.map((t) => t.tool),
+            toolsCalled: toolCalls.map(t => t.tool)
           };
 
+          // PERSIST
           await AgentService.saveAssistantMessage({
             conversationId: result.conversation.id,
             content: fullResponse,
             agentType: result.agentType,
-            debugTrace: finalDebugTrace,
+            debugTrace,
             toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
           });
 
+          // CLOSE
           await stream.writeSSE({
             data: JSON.stringify({
               type: 'done',
               conversationId: result.conversation.id,
               agentType: result.agentType,
-              debugTrace: finalDebugTrace,
-              toolCalls: toolCalls,
+              debugTrace,
+              toolCalls
             }),
           });
 
-        } catch (error: any) {
-          console.error('[ChatController] Stream error:', error.message);
+        } catch (err: any) {
+          console.error('[ChatController] Stream error:', err);
           await stream.writeSSE({
-            data: JSON.stringify({
-              type: 'text',
-              content: '\n\n[System Error]: ' + error.message,
-            }),
+            data: JSON.stringify({ type: 'text', content: `\n\n[Agent Error]: ${err.message}` })
           });
           await stream.writeSSE({ data: JSON.stringify({ type: 'done' }) });
         }
       });
     } catch (error: any) {
-      console.error('[ChatController] Error:', error.message);
+      console.error('[ChatController] Error:', error);
       throw new AppError(500, error.message);
     }
   }
@@ -126,7 +115,7 @@ export class ChatController {
       const conversations = await ConversationService.getConversations(userId);
       return c.json(conversations);
     } catch (error: any) {
-      return c.json({ error: 'Failed to fetch conversations' }, 500);
+      return c.json([], 500);
     }
   }
 
@@ -137,7 +126,7 @@ export class ChatController {
       const history = await ConversationService.getConversationHistory(id, userId);
       return c.json(history);
     } catch (error: any) {
-      return c.json({ error: 'Conversation not found' }, 404);
+      return c.json({ error: 'Not found' }, 404);
     }
   }
 
@@ -145,10 +134,10 @@ export class ChatController {
     const userId = c.get('userId');
     const id = c.req.param('id');
     try {
-      const result = await ConversationService.deleteConversation(id, userId);
-      return c.json(result);
+      await ConversationService.deleteConversation(id, userId);
+      return c.json({ success: true });
     } catch (error: any) {
-      return c.json({ error: 'Failed to delete' }, 500);
+      return c.json({ error: 'Delete failed' }, 500);
     }
   }
 }
